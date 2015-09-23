@@ -10,7 +10,7 @@ var fs = require('fs');
 // Consts
 var PLUGIN_NAME = 'gulp-directive-replace';
 
-module.exports = function (opts) {
+module.exports = function(opts) {
     var defaultOpts = {
         root: '',
         minify: {}
@@ -33,7 +33,14 @@ module.exports = function (opts) {
         try {
             var originalContent = file.contents.toString();
             var templateUrlRegex = /templateUrl\:[^\'\"]*(\'|\")([^\'\"]+)(\'|\")/gm;
+            var templateFieldSeparator = ': ';
             var templateUrl = extractTemplateUrl(originalContent, templateUrlRegex, opts);
+
+            if (!templateUrl) {
+                templateUrlRegex = /templateUrl\s=\s[^\'\"]*(\'|\")([^\'\"]+)(\'|\")/gm;
+                templateFieldSeparator = ' = ';
+                templateUrl = extractTemplateUrl(originalContent, templateUrlRegex, opts)
+            }
 
             if (!templateUrl) {
                 cb(null, file);
@@ -43,7 +50,7 @@ module.exports = function (opts) {
             var templateContent = getTemplateContent(templateUrl);
             var minimize = new Minimize(opts.minify);
 
-            minimize.parse(templateContent, function(err, minimizedTemplate){
+            minimize.parse(templateContent, function(err, minimizedTemplate) {
 
                 if (err) {
                     cb(new gutil.PluginError(PLUGIN_NAME, err, {fileName: file.path}));
@@ -51,7 +58,7 @@ module.exports = function (opts) {
                 }
 
                 var escapedTemplate = escapeString(minimizedTemplate);
-                var injectedTemplate = 'template: \'' + escapedTemplate + '\'';
+                var injectedTemplate = 'template' + templateFieldSeparator + '\'' + escapedTemplate + '\'';
                 var replacedContent = originalContent.replace(templateUrlRegex, injectedTemplate);
 
                 file.contents = new Buffer(replacedContent);
@@ -69,18 +76,18 @@ module.exports = function (opts) {
 
 //////////////////////////////
 
-function extractTemplateUrl (contents, regex, opts) {
+function extractTemplateUrl(contents, regex, opts) {
     var match = regex.exec(contents);
     var hasTemplateUrl = match && match[2];
 
     return hasTemplateUrl ? path.join(opts.root, match[2]) : false;
 }
 
-function getTemplateContent (templateUrl) {
+function getTemplateContent(templateUrl) {
     return fs.readFileSync(templateUrl, 'utf8');
 }
 
-function escapeString (string) {
+function escapeString(string) {
     var escapedString = string;
     escapedString = escapedString ? escapedString.replace(/\\/g, '\\\\') : '';
     escapedString = escapedString ? escapedString.replace(/'/g, "\\'") : '';
